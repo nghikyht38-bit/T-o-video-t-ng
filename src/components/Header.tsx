@@ -1,16 +1,18 @@
 import React from 'react';
-import { Film, Sparkles, CheckCircle2, HardDrive } from 'lucide-react';
+import { Film, Sparkles, CheckCircle2, HardDrive, Database } from 'lucide-react';
 
 interface HeaderProps {
   onSelectSampleIdea: (idea: string) => void;
   lastSavedTime?: string | null;
   isAutoSaved?: boolean;
+  onOpenStorageManager?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onSelectSampleIdea,
   lastSavedTime,
   isAutoSaved = true,
+  onOpenStorageManager,
 }) => {
   const sampleIdeas = [
     {
@@ -52,22 +54,27 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Section: Auto-save status & Quick Sample Presets */}
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Auto-save indicator badge */}
+          {/* Auto-save indicator & Storage Manager badge */}
           {isAutoSaved && (
-            <div
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#12261b] border border-emerald-500/30 text-emerald-300 text-[11px] font-mono shadow-inner"
-              title="Dự án và cấu hình được tự động lưu liên tục vào bộ nhớ trình duyệt (localStorage), không lo mất dữ liệu khi tải lại trang"
+            <button
+              type="button"
+              onClick={onOpenStorageManager}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#12261b] hover:bg-[#1a3827] border border-emerald-500/30 hover:border-emerald-500/70 text-emerald-300 text-[11px] font-mono shadow-inner transition-all cursor-pointer group"
+              title="Nhấp để xem chi tiết bộ nhớ LocalStorage và Dọn dẹp cache (Clear Cache)"
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <HardDrive className="w-3 h-3 text-emerald-400 ml-0.5" />
+              <HardDrive className="w-3 h-3 text-emerald-400 ml-0.5 group-hover:scale-110 transition-transform" />
               <span>Tự động lưu:</span>
               <span className="text-lime-300 font-semibold">
                 {lastSavedTime || 'Đã lưu'}
               </span>
-            </div>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 group-hover:bg-emerald-800 transition-colors">
+                Bộ nhớ ⚙️
+              </span>
+            </button>
           )}
 
           {/* Quick Sample Presets */}

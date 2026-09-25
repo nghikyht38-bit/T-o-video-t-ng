@@ -30,6 +30,7 @@ import { UnifiedSceneSection } from './components/UnifiedSceneSection';
 import { BottomStitcherSection } from './components/BottomStitcherSection';
 import { ImageModal } from './components/ImageModal';
 import { VideoModal } from './components/VideoModal';
+import { StorageManagerModal } from './components/StorageManagerModal';
 
 export default function App() {
   // Load initially saved state from localStorage if available
@@ -169,6 +170,8 @@ export default function App() {
     title: '',
     prompt: '',
   });
+
+  const [isStorageModalOpen, setIsStorageModalOpen] = useState<boolean>(false);
 
   // Handler: Select Preset Idea
   const handleSelectSampleIdea = (sampleText: string) => {
@@ -542,6 +545,7 @@ export default function App() {
         onSelectSampleIdea={handleSelectSampleIdea}
         lastSavedTime={lastSavedTime}
         isAutoSaved={true}
+        onOpenStorageManager={() => setIsStorageModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -581,6 +585,7 @@ export default function App() {
           batchProgressText={batchProgressText}
           onExportJson={handleExportProjectJson}
           onImportJson={handleImportProjectJson}
+          onOpenStorageManager={() => setIsStorageModalOpen(true)}
         />
 
         {/* 4. BẢNG PHÂN CẢNH THEO HÀNG NGANG ĐỐI SOÁT (Prompt Ảnh ➜ Ảnh ➜ Prompt Video ➜ Video) */}
@@ -639,6 +644,14 @@ export default function App() {
         title={videoModal.title}
         prompt={videoModal.prompt}
         dialogue={videoModal.dialogue}
+      />
+
+      {/* Storage & Cache Management Modal */}
+      <StorageManagerModal
+        isOpen={isStorageModalOpen}
+        onClose={() => setIsStorageModalOpen(false)}
+        scenes={scenes}
+        onStorageCleared={handleReset}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import {
   StopCircle,
   FileCode,
   Upload,
+  HardDrive,
 } from 'lucide-react';
 import { Scene } from '../types';
 
@@ -24,6 +25,7 @@ interface ActionControlsProps {
   batchProgressText?: string;
   onExportJson?: () => void;
   onImportJson?: (projectData: any) => void;
+  onOpenStorageManager?: () => void;
 }
 
 export const ActionControls: React.FC<ActionControlsProps> = ({
@@ -39,6 +41,7 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
   batchProgressText,
   onExportJson,
   onImportJson,
+  onOpenStorageManager,
 }) => {
   const readyImagesCount = scenes.filter((s) => s.imageUrl).length;
   const readyVideosCount = scenes.filter((s) => s.videoUrl).length;
@@ -136,6 +139,19 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
                 <span>NHẬP JSON</span>
               </button>
             </div>
+          )}
+
+          {/* NÚT DỌN DẸP BỘ NHỚ (CLEAR CACHE) */}
+          {onOpenStorageManager && (
+            <button
+              type="button"
+              onClick={onOpenStorageManager}
+              className="flex items-center gap-2 px-3.5 py-3 rounded-xl bg-[#0f281a] hover:bg-[#163a26] border border-emerald-600/40 hover:border-emerald-500 text-emerald-200 hover:text-white font-semibold text-xs shadow transition-all cursor-pointer"
+              title="Mở bảng quản lý bộ nhớ, dọn dẹp cache LocalStorage & giải phóng RAM khi làm dự án 100 cảnh"
+            >
+              <HardDrive className="w-4 h-4 text-emerald-400" />
+              <span>DỌN BỘ NHỚ</span>
+            </button>
           )}
         </div>
 
