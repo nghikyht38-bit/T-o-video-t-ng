@@ -1,11 +1,15 @@
 import React from 'react';
-import { Film, Sparkles, CheckCircle2, HardDrive, Database } from 'lucide-react';
+import { Film, Sparkles, CheckCircle2, HardDrive, Database, Crown, User, Key, Mail } from 'lucide-react';
+import { UserAccount } from '../types';
 
 interface HeaderProps {
   onSelectSampleIdea: (idea: string) => void;
   lastSavedTime?: string | null;
   isAutoSaved?: boolean;
   onOpenStorageManager?: () => void;
+  currentUser?: UserAccount;
+  onOpenSubscriptionModal?: () => void;
+  onOpenAuthModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -13,6 +17,9 @@ export const Header: React.FC<HeaderProps> = ({
   lastSavedTime,
   isAutoSaved = true,
   onOpenStorageManager,
+  currentUser,
+  onOpenSubscriptionModal,
+  onOpenAuthModal,
 }) => {
   const sampleIdeas = [
     {
@@ -73,6 +80,69 @@ export const Header: React.FC<HeaderProps> = ({
               </span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 group-hover:bg-emerald-800 transition-colors">
                 Bộ nhớ ⚙️
+              </span>
+            </button>
+          )}
+
+          {/* Gmail Account & API Key Button */}
+          {currentUser && (
+            <button
+              type="button"
+              onClick={onOpenAuthModal}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all cursor-pointer shadow-sm group ${
+                currentUser.apiKey
+                  ? 'bg-emerald-950/90 border-emerald-500/70 hover:border-lime-400 text-lime-200'
+                  : 'bg-[#152416] border-amber-500/50 hover:border-amber-400 text-amber-200'
+              }`}
+              title="Đăng nhập Gmail & Cấu hình Gemini API Key tự động"
+            >
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-emerald-600 to-lime-500 flex items-center justify-center font-bold text-[10px] text-white">
+                <Mail className="w-3 h-3 text-white" />
+              </div>
+              <span className="text-[11px] font-mono hidden md:inline truncate max-w-[130px]">
+                {currentUser.email}
+              </span>
+              <span
+                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase flex items-center gap-1 ${
+                  currentUser.apiKey
+                    ? 'bg-emerald-900/90 text-lime-300 border border-emerald-500/50'
+                    : 'bg-amber-950/80 text-amber-300 border border-amber-600/50'
+                }`}
+              >
+                <Key className="w-2.5 h-2.5" />
+                {currentUser.apiKey ? 'API Riêng' : 'API Mặc Định'}
+              </span>
+            </button>
+          )}
+
+          {/* User Subscription Tier Badge */}
+          {currentUser && (
+            <button
+              type="button"
+              onClick={onOpenSubscriptionModal}
+              className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#13281c] hover:bg-[#1c3a2a] border border-[#234d33] hover:border-lime-500/60 transition-all cursor-pointer shadow-sm group"
+              title="Nhấp để xem thông tin tài khoản và nâng cấp gói đăng ký (Free, Pro, VIP)"
+            >
+              {/* Avatar circle */}
+              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-emerald-600 to-lime-500 flex items-center justify-center font-bold text-[10px] text-white">
+                {currentUser.displayName ? currentUser.displayName[0].toUpperCase() : 'N'}
+              </div>
+
+              {/* Tier badge (similar to Google Flow PRO badge) */}
+              <span
+                className={`text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded tracking-wider shadow-sm ${
+                  currentUser.subscription.tier === 'vip'
+                    ? 'bg-gradient-to-r from-amber-500 to-lime-400 text-black font-black'
+                    : currentUser.subscription.tier === 'pro'
+                    ? 'bg-emerald-500 text-black font-black'
+                    : 'bg-slate-700 text-slate-200'
+                }`}
+              >
+                {currentUser.subscription.tier.toUpperCase()}
+              </span>
+
+              <span className="text-xs text-emerald-200 font-medium hidden sm:inline group-hover:text-white transition-colors">
+                {currentUser.displayName}
               </span>
             </button>
           )}

@@ -1,4 +1,16 @@
 import { ReferenceImage, Scene, ScriptAnalysisResult, StudioConfig } from '../types';
+import { getActiveApiKey } from './authService';
+
+function getRequestHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const activeKey = getActiveApiKey();
+  if (activeKey) {
+    headers['x-api-key'] = activeKey;
+  }
+  return headers;
+}
 
 export async function analyzeScript(
   idea: string,
@@ -26,7 +38,7 @@ export async function analyzeScript(
 
   const response = await fetch('/api/analyze-script', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getRequestHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -88,7 +100,7 @@ export async function generateSceneImage(
 
   const response = await fetch('/api/generate-image', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getRequestHeaders(),
     body: JSON.stringify(payload),
   });
 
@@ -109,7 +121,7 @@ export async function generateSceneSpeech(
   try {
     const response = await fetch('/api/generate-tts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getRequestHeaders(),
       body: JSON.stringify({ text, voice, voiceTone }),
     });
 
@@ -134,7 +146,7 @@ export async function generateVeoVideo(
   onProgress?.('Đang gửi yêu cầu khởi tạo Veo Video...');
   const initRes = await fetch('/api/generate-video', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getRequestHeaders(),
     body: JSON.stringify({ prompt, model, aspectRatio, imageBase64 }),
   });
 
@@ -156,7 +168,7 @@ export async function generateVeoVideo(
 
     const statusRes = await fetch('/api/video-status', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getRequestHeaders(),
       body: JSON.stringify({ operationName }),
     });
 
@@ -171,7 +183,7 @@ export async function generateVeoVideo(
       onProgress?.('Video đã render xong! Đang tải stream video...');
       const dlRes = await fetch('/api/video-download', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getRequestHeaders(),
         body: JSON.stringify({ operationName }),
       });
 

@@ -31,6 +31,15 @@ import { BottomStitcherSection } from './components/BottomStitcherSection';
 import { ImageModal } from './components/ImageModal';
 import { VideoModal } from './components/VideoModal';
 import { StorageManagerModal } from './components/StorageManagerModal';
+import { SubscriptionModal } from './components/SubscriptionModal';
+import { GmailAuthModal } from './components/GmailAuthModal';
+import {
+  getCurrentUser,
+  switchSubscriptionTier,
+  loginUser,
+  checkSceneQuota,
+} from './services/authService';
+import { MembershipTier, UserAccount } from './types';
 
 export default function App() {
   // Load initially saved state from localStorage if available
@@ -172,6 +181,19 @@ export default function App() {
   });
 
   const [isStorageModalOpen, setIsStorageModalOpen] = useState<boolean>(false);
+  const [currentUser, setCurrentUser] = useState<UserAccount>(() => getCurrentUser());
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  const handleSelectTier = (tier: MembershipTier) => {
+    const updated = switchSubscriptionTier(tier);
+    setCurrentUser(updated);
+  };
+
+  const handleUpdateProfile = (email: string, displayName: string) => {
+    const updated = loginUser(email, displayName);
+    setCurrentUser(updated);
+  };
 
   // Handler: Select Preset Idea
   const handleSelectSampleIdea = (sampleText: string) => {
@@ -182,6 +204,14 @@ export default function App() {
   const handleAnalyzeScript = async () => {
     if (!idea || !idea.trim()) {
       alert('Vui lòng nhập ý tưởng tạo kịch bản!');
+      return;
+    }
+
+    // Check membership tier quota for number of scenes
+    const quota = checkSceneQuota(config.sceneCount, currentUser);
+    if (!quota.allowed) {
+      alert(quota.message || 'Số lượng phân cảnh vượt quá giới hạn gói của bạn.');
+      setIsSubscriptionModalOpen(true);
       return;
     }
 
@@ -546,6 +576,9 @@ export default function App() {
         lastSavedTime={lastSavedTime}
         isAutoSaved={true}
         onOpenStorageManager={() => setIsStorageModalOpen(true)}
+        currentUser={currentUser}
+        onOpenSubscriptionModal={() => setIsSubscriptionModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -586,6 +619,7 @@ export default function App() {
           onExportJson={handleExportProjectJson}
           onImportJson={handleImportProjectJson}
           onOpenStorageManager={() => setIsStorageModalOpen(true)}
+          config={config}
         />
 
         {/* 4. BẢNG PHÂN CẢNH THEO HÀNG NGANG ĐỐI SOÁT (Prompt Ảnh ➜ Ảnh ➜ Prompt Video ➜ Video) */}
@@ -652,6 +686,23 @@ export default function App() {
         onClose={() => setIsStorageModalOpen(false)}
         scenes={scenes}
         onStorageCleared={handleReset}
+      />
+
+      {/* Membership & Subscription Pricing Modal */}
+      <SubscriptionModal
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+        currentUser={currentUser}
+        onSelectTier={handleSelectTier}
+        onUpdateProfile={handleUpdateProfile}
+      />
+
+      {/* Gmail Login & Personal API Key Modal */}
+      <GmailAuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentUser={currentUser}
+        onUserUpdated={(u) => setCurrentUser(u)}
       />
     </div>
   );

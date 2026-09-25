@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
-import { Scene } from '../types';
+import { Scene, TransitionEffect, SubtitleConfig } from '../types';
+import { generateSrtContent } from './subtitleService';
 
 /**
  * Creates a high-fidelity stylized canvas image if direct API image generation fails
@@ -350,7 +351,10 @@ export async function synthesizeSceneVideoClip(
 export async function stitchAllReadyVideos(
   scenes: Scene[],
   aspectRatio: string = '16:9',
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
+  bgMusicOptions?: { url?: string; volume?: number },
+  transitionEffect: TransitionEffect = 'crossfade',
+  subtitleConfig?: SubtitleConfig
 ): Promise<Blob> {
   const readyScenes = scenes.filter((s) => s.videoUrl || s.imageUrl);
   if (readyScenes.length === 0) {
@@ -375,6 +379,36 @@ export async function stitchAllReadyVideos(
   const fps = 30;
   const canvasStream = canvas.captureStream(fps);
 
+  // Background Music setup
+  let bgAudioEl: HTMLAudioElement | null = null;
+  let audioContext: AudioContext | null = null;
+
+  if (bgMusicOptions?.url) {
+    try {
+      audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      bgAudioEl = new Audio();
+      bgAudioEl.crossOrigin = 'anonymous';
+      bgAudioEl.src = bgMusicOptions.url;
+      bgAudioEl.volume = bgMusicOptions.volume ?? 0.35;
+      bgAudioEl.loop = true;
+
+      const source = audioContext.createMediaElementSource(bgAudioEl);
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = bgMusicOptions.volume ?? 0.35;
+      const destination = audioContext.createMediaStreamDestination();
+
+      source.connect(gainNode);
+      gainNode.connect(destination);
+
+      const audioTrack = destination.stream.getAudioTracks()[0];
+      if (audioTrack) {
+        canvasStream.addTrack(audioTrack);
+      }
+    } catch (e) {
+      console.warn('Không thể khởi tạo luồng âm thanh nền:', e);
+    }
+  }
+
   const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
     ? 'video/webm;codecs=vp9,opus'
     : 'video/webm';
@@ -389,11 +423,87 @@ export async function stitchAllReadyVideos(
     if (e.data && e.data.size > 0) chunks.push(e.data);
   };
 
+  // Preload all ready scene images
+  const loadedImages: HTMLImageElement[] = await Promise.all(
+    readyScenes.map((sc) => {
+      return new Promise<HTMLImageElement>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = () => {
+          img.src = createStyledPlaceholderImage(
+            sc.title,
+            sc.imagePromptVi || '',
+            'Điện Ảnh',
+            'Nhân vật'
+          );
+          resolve(img);
+        };
+        img.src =
+          sc.imageUrl ||
+          createStyledPlaceholderImage(
+            sc.title,
+            sc.imagePromptVi || '',
+            'Điện Ảnh',
+            'Nhân vật'
+          );
+      });
+    })
+  );
+
+  function drawCover(
+    targetCtx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    w: number,
+    h: number,
+    scale: number = 1.0,
+    offsetX: number = 0,
+    offsetY: number = 0,
+    alpha: number = 1.0
+  ) {
+    targetCtx.save();
+    targetCtx.globalAlpha = Math.max(0, Math.min(1, alpha));
+    targetCtx.translate(w / 2 + offsetX, h / 2 + offsetY);
+    targetCtx.scale(scale, scale);
+    targetCtx.translate(-w / 2, -h / 2);
+
+    const imgAspect = img.width / img.height;
+    const canvasAspect = w / h;
+    let dw = w;
+    let dh = h;
+    let dx = 0;
+    let dy = 0;
+
+    if (imgAspect > canvasAspect) {
+      dh = h;
+      dw = h * imgAspect;
+      dx = (w - dw) / 2;
+    } else {
+      dw = w;
+      dh = w / imgAspect;
+      dy = (h - dh) / 2;
+    }
+
+    targetCtx.drawImage(img, dx, dy, dw, dh);
+    targetCtx.restore();
+  }
+
   return new Promise(async (resolve, reject) => {
     recorder.onstop = () => {
+      if (bgAudioEl) {
+        bgAudioEl.pause();
+        bgAudioEl = null;
+      }
+      if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close().catch(() => {});
+      }
       const combinedBlob = new Blob(chunks, { type: mimeType });
       resolve(combinedBlob);
     };
+
+    if (bgAudioEl) {
+      bgAudioEl.play().catch(() => {});
+    }
 
     recorder.start();
 
@@ -404,60 +514,128 @@ export async function stitchAllReadyVideos(
 
         const durationSec = Math.max(3, parseInt(sc.duration) || 5);
         const totalSceneFrames = durationSec * fps;
+        const transitionFrames =
+          transitionEffect !== 'none' && i < readyScenes.length - 1
+            ? Math.min(18, Math.floor(totalSceneFrames * 0.25)) // ~0.6s
+            : 0;
 
-        // Load image or grab video frame
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        await new Promise((res, rej) => {
-          img.onload = res;
-          img.onerror = rej;
-          img.src = sc.imageUrl || createStyledPlaceholderImage(sc.title, sc.imagePromptVi || '', 'Điện Ảnh', 'Nhân vật');
-        });
+        const currentImg = loadedImages[i];
+        const nextImg = loadedImages[i + 1];
 
         for (let f = 0; f < totalSceneFrames; f++) {
           const progress = f / totalSceneFrames;
           const scale = 1.0 + progress * 0.12;
 
           ctx.clearRect(0, 0, width, height);
-          ctx.save();
-          ctx.translate(width / 2, height / 2);
-          ctx.scale(scale, scale);
-          ctx.translate(-width / 2, -height / 2);
 
-          const imgAspect = img.width / img.height;
-          const canvasAspect = width / height;
-          let dw = width;
-          let dh = height;
-          let dx = 0;
-          let dy = 0;
+          const isTransitioning =
+            transitionFrames > 0 && f >= totalSceneFrames - transitionFrames;
+          const t = isTransitioning
+            ? (f - (totalSceneFrames - transitionFrames)) / transitionFrames
+            : 0;
 
-          if (imgAspect > canvasAspect) {
-            dh = height;
-            dw = height * imgAspect;
-            dx = (width - dw) / 2;
+          if (!isTransitioning || !nextImg) {
+            // Normal scene frame
+            drawCover(ctx, currentImg, width, height, scale);
           } else {
-            dw = width;
-            dh = width / imgAspect;
-            dy = (height - dh) / 2;
+            // Render Transition Effects
+            switch (transitionEffect) {
+              case 'crossfade':
+                drawCover(ctx, currentImg, width, height, scale, 0, 0, 1 - t);
+                drawCover(ctx, nextImg, width, height, 1.0, 0, 0, t);
+                break;
+
+              case 'fade_black':
+                if (t < 0.5) {
+                  drawCover(ctx, currentImg, width, height, scale);
+                  ctx.fillStyle = `rgba(0, 0, 0, ${t * 2})`;
+                  ctx.fillRect(0, 0, width, height);
+                } else {
+                  drawCover(ctx, nextImg, width, height, 1.0);
+                  ctx.fillStyle = `rgba(0, 0, 0, ${(1 - t) * 2})`;
+                  ctx.fillRect(0, 0, width, height);
+                }
+                break;
+
+              case 'wipe_left':
+                drawCover(ctx, currentImg, width, height, scale);
+                drawCover(ctx, nextImg, width, height, 1.0, (1 - t) * width);
+                break;
+
+              case 'zoom_push':
+                drawCover(
+                  ctx,
+                  currentImg,
+                  width,
+                  height,
+                  scale * (1.0 + t * 0.3),
+                  0,
+                  0,
+                  1 - t
+                );
+                drawCover(ctx, nextImg, width, height, 1.25 - t * 0.25, 0, 0, t);
+                break;
+
+              case 'flash_white':
+                if (t < 0.5) {
+                  drawCover(ctx, currentImg, width, height, scale);
+                  ctx.fillStyle = `rgba(255, 255, 255, ${t * 2})`;
+                  ctx.fillRect(0, 0, width, height);
+                } else {
+                  drawCover(ctx, nextImg, width, height, 1.0);
+                  ctx.fillStyle = `rgba(255, 255, 255, ${(1 - t) * 2})`;
+                  ctx.fillRect(0, 0, width, height);
+                }
+                break;
+
+              default:
+                drawCover(ctx, currentImg, width, height, scale);
+                break;
+            }
           }
 
-          ctx.drawImage(img, dx, dy, dw, dh);
-          ctx.restore();
-
           // Subtitle bar
-          if (sc.dialogue && sc.dialogue.trim()) {
-            const subH = 68;
-            const subY = height - subH - 30;
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.beginPath();
-            ctx.roundRect(width * 0.08, subY, width * 0.84, subH, 12);
-            ctx.fill();
+          const showSubtitle =
+            subtitleConfig?.enabled !== false &&
+            sc.dialogue &&
+            sc.dialogue.trim() &&
+            (!isTransitioning || t < 0.5);
 
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 22px sans-serif';
+          if (showSubtitle) {
+            const fontSize = subtitleConfig?.fontSize || 24;
+            const fontFamily = subtitleConfig?.fontFamily || 'system-ui, sans-serif';
+            const textColor = subtitleConfig?.textColor || '#ffffff';
+            const bgColor = subtitleConfig?.bgColor ?? 'rgba(0,0,0,0.75)';
+            const pos = subtitleConfig?.position || 'bottom';
+
+            const subH = fontSize + 36;
+            let subY = height - subH - 32;
+            if (pos === 'top') {
+              subY = 40;
+            } else if (pos === 'center') {
+              subY = (height - subH) / 2;
+            }
+
+            if (bgColor !== 'rgba(0, 0, 0, 0)') {
+              ctx.fillStyle = bgColor;
+              ctx.beginPath();
+              ctx.roundRect(width * 0.08, subY, width * 0.84, subH, 12);
+              ctx.fill();
+            }
+
+            ctx.font = `bold ${fontSize}px ${fontFamily}`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(sc.dialogue, width / 2, subY + subH / 2);
+
+            const textToDraw = sc.dialogue || '';
+            if (bgColor === 'rgba(0, 0, 0, 0)') {
+              ctx.strokeStyle = '#000000';
+              ctx.lineWidth = 4;
+              ctx.strokeText(textToDraw, width / 2, subY + subH / 2);
+            }
+
+            ctx.fillStyle = textColor;
+            ctx.fillText(textToDraw, width / 2, subY + subH / 2);
           }
 
           // Scene counter overlay top left
@@ -525,6 +703,7 @@ export async function downloadProjectBatchZip(
     textDoc += `Góc máy: ${s.cameraMovement || 'N/A'}\n\n`;
   });
   zip.file('kich_ban_tieng_viet.txt', textDoc);
+  zip.file('phu_de_chuan_dong_bo.srt', '\uFEFF' + generateSrtContent(scenes));
 
   // 2. Images folder
   const imgFolder = zip.folder('hinh_anh');

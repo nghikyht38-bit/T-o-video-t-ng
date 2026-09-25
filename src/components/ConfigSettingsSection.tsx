@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Settings,
   Cpu,
@@ -10,6 +10,14 @@ import {
   ExternalLink,
   Volume2,
   VolumeX,
+  Music,
+  Play,
+  Pause,
+  Upload,
+  Trash2,
+  Disc,
+  Loader2,
+  Sparkles,
 } from 'lucide-react';
 import {
   AspectRatio,
@@ -19,6 +27,12 @@ import {
   VideoStyle,
   VoiceOption,
 } from '../types';
+import {
+  BG_MUSIC_PRESETS,
+  generateSyntheticPreset,
+  handleCustomAudioUpload,
+} from '../services/bgMusicService';
+import { CostEstimatorCard } from './CostEstimatorCard';
 
 interface ConfigSettingsSectionProps {
   config: StudioConfig;
@@ -29,6 +43,116 @@ export const ConfigSettingsSection: React.FC<ConfigSettingsSectionProps> = ({
   config,
   setConfig,
 }) => {
+  const [isPlayingPreview, setIsPlayingPreview] = useState<boolean>(false);
+  const [isGeneratingPreset, setIsGeneratingPreset] = useState<string | null>(null);
+  const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Stop audio preview when music url changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (audioPreviewRef.current) {
+        audioPreviewRef.current.pause();
+      }
+    };
+  }, []);
+
+  const handleSelectPreset = async (preset: (typeof BG_MUSIC_PRESETS)[0]) => {
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+      setIsPlayingPreview(false);
+    }
+
+    if (preset.id === 'none') {
+      setConfig((prev) => ({
+        ...prev,
+        bgMusicUrl: undefined,
+        bgMusicName: undefined,
+      }));
+      return;
+    }
+
+    try {
+      setIsGeneratingPreset(preset.id);
+      const url = await generateSyntheticPreset(preset.id);
+      setConfig((prev) => ({
+        ...prev,
+        bgMusicUrl: url,
+        bgMusicName: preset.name,
+        bgMusicVolume: prev.bgMusicVolume ?? 0.35,
+      }));
+    } catch (e) {
+      console.error('Lỗi tạo nhạc nền preset:', e);
+    } finally {
+      setIsGeneratingPreset(null);
+    }
+  };
+
+  const handleCustomFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+      setIsPlayingPreview(false);
+    }
+
+    try {
+      const { url, name } = await handleCustomAudioUpload(file);
+      setConfig((prev) => ({
+        ...prev,
+        bgMusicUrl: url,
+        bgMusicName: name,
+        bgMusicVolume: prev.bgMusicVolume ?? 0.35,
+      }));
+    } catch (e) {
+      alert('Không thể đọc tệp âm thanh. Vui lòng chọn tệp MP3, WAV hoặc AAC hợp lệ.');
+    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const togglePreview = () => {
+    if (!config.bgMusicUrl) return;
+
+    if (!audioPreviewRef.current) {
+      audioPreviewRef.current = new Audio(config.bgMusicUrl);
+      audioPreviewRef.current.loop = true;
+      audioPreviewRef.current.onended = () => setIsPlayingPreview(false);
+    } else if (audioPreviewRef.current.src !== config.bgMusicUrl) {
+      audioPreviewRef.current.src = config.bgMusicUrl;
+    }
+
+    audioPreviewRef.current.volume = config.bgMusicVolume ?? 0.35;
+
+    if (isPlayingPreview) {
+      audioPreviewRef.current.pause();
+      setIsPlayingPreview(false);
+    } else {
+      audioPreviewRef.current
+        .play()
+        .then(() => setIsPlayingPreview(true))
+        .catch(() => {});
+    }
+  };
+
+  const handleVolumeChange = (vol: number) => {
+    setConfig((prev) => ({ ...prev, bgMusicVolume: vol }));
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.volume = vol;
+    }
+  };
+
+  const handleRemoveMusic = () => {
+    if (audioPreviewRef.current) {
+      audioPreviewRef.current.pause();
+      setIsPlayingPreview(false);
+    }
+    setConfig((prev) => ({
+      ...prev,
+      bgMusicUrl: undefined,
+      bgMusicName: undefined,
+    }));
+  };
   const models: { id: VideoModel; label: string; badge: string; desc: string }[] = [
     {
       id: 'veo 3.1-fast',
@@ -380,6 +504,158 @@ export const ConfigSettingsSection: React.FC<ConfigSettingsSectionProps> = ({
             Đồng bộ tỉ lệ cho cả hình ảnh và video
           </p>
         </div>
+      </div>
+
+      {/* 3. BẢNG ƯỚC TÍNH CHI PHÍ API (TOKENS / CREDITS DỰ KIẾN) */}
+      <div className="mt-4">
+        <CostEstimatorCard config={config} />
+      </div>
+
+      {/* 4. KHUNG CÀI ĐẶT NHẠC NỀN TOÀN BỘ VIDEO (BACKGROUND MUSIC - BGM) */}
+      <div className="mt-3.5 bg-[#112419] border border-[#1e3d2b] rounded-xl p-4 shadow-inner">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3 pb-2.5 border-b border-[#183623]">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Music className="w-4 h-4 text-lime-400" />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-emerald-200 uppercase tracking-wide flex items-center gap-1.5">
+                Nhạc Nền Toàn Bộ Video (Background Music - BGM)
+              </label>
+              <p className="text-[11px] text-emerald-400/80">
+                Tự động lồng ghép nhạc nền xuyên suốt khi xuất video ghép nối 100 phân cảnh
+              </p>
+            </div>
+          </div>
+
+          {/* Current Track Status Badge & Preview Audio Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {config.bgMusicUrl ? (
+              <div className="flex items-center gap-2 bg-[#09150e] border border-emerald-500/40 rounded-xl px-3 py-1.5 text-xs shadow-inner">
+                {/* Play / Pause button */}
+                <button
+                  type="button"
+                  onClick={togglePreview}
+                  className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-all cursor-pointer shadow"
+                  title={isPlayingPreview ? 'Tạm dừng nghe thử' : 'Nghe thử nhạc nền'}
+                >
+                  {isPlayingPreview ? (
+                    <Pause className="w-3.5 h-3.5" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 ml-0.5" />
+                  )}
+                </button>
+
+                <div className="flex flex-col">
+                  <span className="text-[11px] font-bold text-lime-300 max-w-[200px] truncate">
+                    {config.bgMusicName || 'Nhạc nền đã chọn'}
+                  </span>
+                  <span className="text-[9px] text-emerald-400">
+                    {isPlayingPreview ? 'Đang phát nghe thử...' : 'Đã sẵn sàng lồng ghép'}
+                  </span>
+                </div>
+
+                {/* Remove Music button */}
+                <button
+                  type="button"
+                  onClick={handleRemoveMusic}
+                  className="p-1 text-emerald-500 hover:text-rose-400 transition-colors cursor-pointer ml-1"
+                  title="Gỡ bỏ nhạc nền này"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <span className="text-xs text-emerald-500/80 italic px-2.5 py-1 rounded bg-[#09150e] border border-[#1b3b27]">
+                Chưa chọn nhạc nền
+              </span>
+            )}
+
+            {/* Custom Audio File Upload */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg"
+              onChange={handleCustomFileChange}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#142e1f] hover:bg-[#1d422c] border border-[#27563a] hover:border-emerald-500/60 text-emerald-200 text-xs font-semibold shadow transition-all cursor-pointer"
+              title="Tải lên tệp nhạc nền riêng từ máy tính của bạn (MP3, WAV, AAC...)"
+            >
+              <Upload className="w-3.5 h-3.5 text-lime-400" />
+              <span>Tải Nhạc Từ Máy</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Music Presets Selection Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {BG_MUSIC_PRESETS.map((preset) => {
+            const isSelected =
+              preset.id === 'none'
+                ? !config.bgMusicUrl
+                : config.bgMusicName === preset.name;
+            const isLoadingThis = isGeneratingPreset === preset.id;
+
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                disabled={isLoadingThis}
+                onClick={() => handleSelectPreset(preset)}
+                className={`p-2.5 rounded-xl text-left border transition-all cursor-pointer flex flex-col justify-between ${
+                  isSelected
+                    ? 'bg-emerald-600/30 text-white border-emerald-400 ring-1 ring-emerald-400 shadow-md'
+                    : 'bg-[#08120c] hover:bg-[#13281c] text-emerald-300 border-[#1e3c2a] hover:border-[#2a543b]'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-1 mb-1">
+                  <span className="text-xs font-bold line-clamp-1">
+                    {preset.name}
+                  </span>
+                  {isLoadingThis ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-lime-400 shrink-0" />
+                  ) : isSelected ? (
+                    <span className="w-2 h-2 rounded-full bg-lime-400 shadow-sm shrink-0 mt-1"></span>
+                  ) : null}
+                </div>
+                <p className="text-[10px] text-emerald-400/80 line-clamp-2">
+                  {preset.desc}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Volume Slider row when music is active */}
+        {config.bgMusicUrl && (
+          <div className="mt-3 pt-2.5 border-t border-[#183623] flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3 flex-1 min-w-[240px]">
+              <span className="text-emerald-400 flex items-center gap-1.5 shrink-0 text-xs font-semibold">
+                <Volume2 className="w-3.5 h-3.5 text-lime-400" />
+                Âm lượng nhạc nền:
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={config.bgMusicVolume ?? 0.35}
+                onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                className="w-full max-w-[200px] h-1.5 bg-[#08120c] rounded-lg appearance-none cursor-pointer accent-lime-400"
+              />
+              <span className="font-mono text-lime-300 text-xs font-bold">
+                {Math.round((config.bgMusicVolume ?? 0.35) * 100)}%
+              </span>
+            </div>
+            <span className="text-[10px] text-emerald-500">
+              * Khuyên dùng 30% - 40% để nhạc nền êm ái dưới giọng đọc thuyết minh
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

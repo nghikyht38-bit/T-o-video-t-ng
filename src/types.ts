@@ -83,4 +83,56 @@ export interface StudioConfig {
   sceneCount: number;
   duration: VideoDuration;
   aspectRatio: AspectRatio;
+  bgMusicUrl?: string;
+  bgMusicName?: string;
+  bgMusicVolume?: number;
+}
+
+export type TransitionEffect =
+  | 'none'
+  | 'crossfade'
+  | 'fade_black'
+  | 'wipe_left'
+  | 'zoom_push'
+  | 'flash_white';
+
+export type SubtitlePosition = 'bottom' | 'center' | 'top';
+
+export interface SubtitleConfig {
+  enabled: boolean;
+  fontFamily: string;
+  fontSize: number;
+  textColor: string;
+  position: SubtitlePosition;
+  bgColor: string;
+  strokeColor?: string;
+}
+
+export type MembershipTier = 'free' | 'pro' | 'vip';
+
+export interface UserSubscription {
+  tier: MembershipTier;
+  tierName: string;
+  maxScenesPerProject: number;
+  maxDailyRenders: number;
+  unlimitedScenes: boolean;
+  priorityQueue: boolean;
+  resolution: string;
+  hasWatermark: boolean;
+  expiresAt?: string;
+}
+
+export interface UserAccount {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  subscription: UserSubscription;
+  rendersUsedToday: number;
+  scenesCreated: number;
+  createdAt: string;
+  apiKey?: string; // Gemini API Key cá nhân theo Gmail
+  apiKeyStatus?: 'valid' | 'invalid' | 'untested';
+  apiKeyTestedAt?: string;
+  usePersonalApiKey?: boolean; // Tùy chọn ưu tiên dùng API riêng hay API hệ thống
 }

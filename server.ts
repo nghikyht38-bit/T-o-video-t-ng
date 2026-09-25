@@ -16,10 +16,10 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Initialize Google Gen AI client with required User-Agent
-const getAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
+const getAI = (customKey?: string) => {
+  const apiKey = (customKey && customKey.trim()) || process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured in environment variables.');
+    throw new Error('GEMINI_API_KEY is not configured in environment variables or user profile.');
   }
   return new GoogleGenAI({
     apiKey,
@@ -30,6 +30,43 @@ const getAI = () => {
     },
   });
 };
+
+/**
+ * 0. API: Kiểm tra tính hợp lệ của Gemini API Key
+ */
+app.post('/api/validate-key', async (req, res) => {
+  try {
+    const { apiKey } = req.body;
+    if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+      return res.status(400).json({ valid: false, error: 'Vui lòng cung cấp API Key.' });
+    }
+    const testAI = new GoogleGenAI({
+      apiKey: apiKey.trim(),
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
+    const response = await testAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: 'Ping test',
+    });
+
+    return res.json({
+      valid: true,
+      message: 'Kết nối API Key thành công! Mô hình Gemini & Veo sẵn sàng.',
+      model: 'gemini-2.5-flash',
+    });
+  } catch (error: any) {
+    const msg = error?.message || 'API Key không hợp lệ hoặc đã hết hạn mức.';
+    return res.status(400).json({
+      valid: false,
+      error: msg,
+    });
+  }
+});
 
 /**
  * 1. API: Phân tích Kịch bản & Tạo Prompt Hàng Loạt Đồng Bộ Nhân Vật
@@ -54,7 +91,8 @@ app.post('/api/analyze-script', async (req, res) => {
       return res.status(400).json({ error: 'Vui lòng cung cấp ý tưởng kịch bản.' });
     }
 
-    const ai = getAI();
+    const userApiKey = (req.headers['x-api-key'] as string) || req.body?.apiKey;
+    const ai = getAI(userApiKey);
     const count = Math.min(Math.max(Number(sceneCount) || 1, 1), 100);
 
     // Build system instruction and prompt for master character consistency
@@ -280,7 +318,8 @@ app.post('/api/generate-image', async (req, res) => {
   const selectedRatio = validAspectRatios.includes(aspectRatio) ? aspectRatio : '16:9';
 
   try {
-    const ai = getAI();
+    const userApiKey = (req.headers['x-api-key'] as string) || req.body?.apiKey;
+    const ai = getAI(userApiKey);
 
     const fullPrompt = characterConsistency
       ? `Consistent character visual: ${characterConsistency}. Scene action: ${prompt}. Ultra-detailed, cinematic lighting, 8k render, masterpiece.`
@@ -378,7 +417,8 @@ app.post('/api/generate-video', async (req, res) => {
       return res.status(400).json({ error: 'Prompt video không được để trống.' });
     }
 
-    const ai = getAI();
+    const userApiKey = (req.headers['x-api-key'] as string) || req.body?.apiKey;
+    const ai = getAI(userApiKey);
     const veoModel =
       model.includes('quality') || model.includes('3.1-generate')
         ? 'veo-3.1-generate-preview'
@@ -430,7 +470,8 @@ app.post('/api/video-status', async (req, res) => {
       return res.status(400).json({ error: 'Missing operationName' });
     }
 
-    const ai = getAI();
+    const userApiKey = (req.headers['x-api-key'] as string) || req.body?.apiKey;
+    const ai = getAI(userApiKey);
     const op: any = { name: operationName };
     const updated = await ai.operations.getVideosOperation({ operation: op });
 
@@ -455,8 +496,9 @@ app.post('/api/video-download', async (req, res) => {
       return res.status(400).json({ error: 'Missing operationName' });
     }
 
-    const ai = getAI();
-    const apiKey = process.env.GEMINI_API_KEY;
+    const userApiKey = (req.headers['x-api-key'] as string) || req.body?.apiKey;
+    const ai = getAI(userApiKey);
+    const apiKey = (userApiKey && userApiKey.trim()) || process.env.GEMINI_API_KEY;
     const op: any = { name: operationName };
     const updated = await ai.operations.getVideosOperation({ operation: op });
 
@@ -492,7 +534,8 @@ app.post('/api/generate-tts', async (req, res) => {
       return res.status(400).json({ error: 'Văn bản lời thoại trống' });
     }
 
-    const ai = getAI();
+    const userApiKey = (req.headers['x-api-key'] as string) || req.body?.apiKey;
+    const ai = getAI(userApiKey);
 
     // Map voice selection to Gemini prebuilt voice and style prompt
     let voiceName = 'Zephyr';

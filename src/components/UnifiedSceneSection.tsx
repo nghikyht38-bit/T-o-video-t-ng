@@ -30,8 +30,11 @@ import {
   Undo2,
   Redo2,
   History,
+  Table,
+  LayoutGrid,
 } from 'lucide-react';
 import { Scene } from '../types';
+import { SceneDataGrid } from './SceneDataGrid';
 
 export type SceneFilterType = 'all' | 'ready' | 'pending' | 'error';
 
@@ -80,6 +83,7 @@ export const UnifiedSceneSection: React.FC<UnifiedSceneSectionProps> = ({
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [activeScrollerIndex, setActiveScrollerIndex] = useState<number>(1);
   const [isExpandedFull, setIsExpandedFull] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'grid'>('cards');
   const [filterStatus, setFilterStatus] = useState<SceneFilterType>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -252,6 +256,36 @@ export const UnifiedSceneSection: React.FC<UnifiedSceneSectionProps> = ({
               </button>
             </div>
           )}
+
+          {/* NÚT CHUYỂN ĐỔI CHẾ ĐỘ XEM: CARD vs DATA GRID */}
+          <div className="flex items-center bg-[#09150e] border border-[#1e3d2b] rounded-lg p-0.5 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setViewMode('cards')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'cards'
+                  ? 'bg-emerald-600 text-white shadow-sm border border-emerald-500'
+                  : 'text-emerald-400 hover:text-white hover:bg-[#14291e]'
+              }`}
+              title="Xem theo dạng các thẻ phân cảnh hàng ngang"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Dạng Card</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                viewMode === 'grid'
+                  ? 'bg-emerald-600 text-white shadow-sm border border-emerald-500'
+                  : 'text-emerald-400 hover:text-white hover:bg-[#14291e]'
+              }`}
+              title="Xem dạng Bảng dữ liệu (Data Grid) tối ưu quản lý 100 cảnh"
+            >
+              <Table className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Dạng Bảng (Data Grid)</span>
+            </button>
+          </div>
 
           <span className="px-2.5 py-1 rounded-lg bg-[#14291e] text-emerald-300 border border-[#234b34]">
             🖼️ Ảnh: {readyImages}/{scenes.length}
@@ -519,6 +553,24 @@ export const UnifiedSceneSection: React.FC<UnifiedSceneSectionProps> = ({
             Vui lòng nhập ý tưởng và nhấn nút <strong>"PHÂN TÍCH TẠO KỊCH BẢN"</strong> ở trên để hệ thống tự động sinh các hàng phân cảnh hoàn chỉnh.
           </p>
         </div>
+      ) : viewMode === 'grid' ? (
+        <SceneDataGrid
+          scenes={filteredScenes}
+          onUpdateImagePrompt={onUpdateImagePrompt}
+          onUpdateVideoPrompt={onUpdateVideoPrompt}
+          onUpdateDialogue={onUpdateDialogue}
+          onUpdateVoiceToneNote={onUpdateVoiceToneNote || (() => {})}
+          onGenerateSingleImage={onGenerateSingleImage}
+          onGenerateSingleVideo={onGenerateSingleVideo}
+          onUploadCustomImage={onUploadCustomImage}
+          onUploadCustomVideo={onUploadCustomVideo}
+          onOpenZoomModal={onOpenZoomModal}
+          onOpenVideoModal={onOpenVideoModal}
+          onCopy={handleCopy}
+          copiedId={copiedId}
+          onDownloadImage={handleDownloadImage}
+          isExpandedFull={isExpandedFull}
+        />
       ) : (
         <div>
           {/* Table Header Row (Desktop) */}

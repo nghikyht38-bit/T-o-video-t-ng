@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   RotateCcw,
   Sparkles,
@@ -9,8 +9,12 @@ import {
   FileCode,
   Upload,
   HardDrive,
+  Calculator,
+  X,
 } from 'lucide-react';
-import { Scene } from '../types';
+import { Scene, StudioConfig } from '../types';
+import { estimateProjectCost } from '../services/costEstimatorService';
+import { CostEstimatorCard } from './CostEstimatorCard';
 
 interface ActionControlsProps {
   isAnalyzing: boolean;
@@ -26,6 +30,7 @@ interface ActionControlsProps {
   onExportJson?: () => void;
   onImportJson?: (projectData: any) => void;
   onOpenStorageManager?: () => void;
+  config?: StudioConfig;
 }
 
 export const ActionControls: React.FC<ActionControlsProps> = ({
@@ -42,13 +47,17 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
   onExportJson,
   onImportJson,
   onOpenStorageManager,
+  config,
 }) => {
+  const [isCostModalOpen, setIsCostModalOpen] = useState(false);
   const readyImagesCount = scenes.filter((s) => s.imageUrl).length;
   const readyVideosCount = scenes.filter((s) => s.videoUrl).length;
   const totalCount = scenes.length;
 
   const isAnyBatchRunning = isBatchGeneratingImages || isBatchGeneratingVideos;
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const cost = config ? estimateProjectCost(config) : null;
 
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -190,6 +199,19 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
               <span>TẠO TẤT CẢ VIDEO ({readyVideosCount}/{totalCount})</span>
             </button>
 
+            {/* Nút Xem Ước Tính API Dự Kiến */}
+            {cost && (
+              <button
+                type="button"
+                onClick={() => setIsCostModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-950/40 hover:bg-amber-900/60 border border-amber-500/50 hover:border-amber-400 text-amber-200 hover:text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                title="Bấm để xem chi tiết ước tính Tokens, Credits và chi phí trước khi tạo hàng loạt"
+              >
+                <Calculator className="w-3.5 h-3.5 text-amber-400" />
+                <span>ƯỚC TÍNH CHI PHÍ (~{cost.totalCredits} Credits)</span>
+              </button>
+            )}
+
             {/* Stop batch button */}
             {isAnyBatchRunning && (
               <button
@@ -215,6 +237,23 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
           <span className="font-mono text-[11px] text-emerald-500">
             Hệ thống đang tự sắp xếp lượt chạy batch tối ưu
           </span>
+        </div>
+      )}
+
+      {/* Modal Bảng Ước Tính Chi Phí API Chi Tiết */}
+      {isCostModalOpen && config && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-3xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              type="button"
+              onClick={() => setIsCostModalOpen(false)}
+              className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-emerald-900 border border-emerald-500 text-emerald-200 hover:text-white flex items-center justify-center shadow-lg cursor-pointer"
+              title="Đóng bảng ước tính"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <CostEstimatorCard config={config} />
+          </div>
         </div>
       )}
     </div>
