@@ -1,6 +1,8 @@
-import React, { useRef } from 'react';
-import { UploadCloud, Image as ImageIcon, X, Lightbulb, Users, ShieldCheck, Sparkles } from 'lucide-react';
+import React, { useRef, useState, useMemo } from 'react';
+import { UploadCloud, Image as ImageIcon, X, Lightbulb, Users, ShieldCheck, Sparkles, Wand2, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 import { ReferenceImage } from '../types';
+import { ConsistencyTokensSuggester } from './ConsistencyTokensSuggester';
+import { extractConsistencyTokensFromText, appendTokensToString } from '../utils/consistencyTokens';
 
 interface ScriptInputSectionProps {
   idea: string;
@@ -20,6 +22,17 @@ export const ScriptInputSection: React.FC<ScriptInputSectionProps> = ({
   setCharacterSeed,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showTokenSuggester, setShowTokenSuggester] = useState(false);
+
+  // Quick extract tokens from idea + characterSeed for instant chips
+  const quickExtractedTokens = useMemo(() => {
+    return extractConsistencyTokensFromText(`${idea} ${characterSeed}`);
+  }, [idea, characterSeed]);
+
+  const handleQuickAddToken = (token: string) => {
+    const updated = appendTokensToString(characterSeed, [token]);
+    setCharacterSeed(updated);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -78,19 +91,64 @@ export const ScriptInputSection: React.FC<ScriptInputSectionProps> = ({
             className="w-full bg-[#08120c] border border-[#1e3c2a] rounded-xl p-3.5 text-sm text-emerald-100 placeholder-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none transition-all leading-relaxed shadow-inner"
           />
 
-          {/* Optional character detail override */}
+          {/* Optional character detail override & consistency tokens */}
           <div className="mt-3 pt-3 border-t border-[#183623]">
-            <div className="flex items-center gap-2 mb-1.5 text-xs text-emerald-300 font-medium">
-              <Users className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Ghi chú nhân vật đồng bộ (Tùy chọn bổ sung):</span>
+            <div className="flex items-center justify-between gap-2 mb-1.5 text-xs text-emerald-300 font-medium">
+              <div className="flex items-center gap-2">
+                <Users className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Ghi chú nhân vật đồng bộ (Tùy chọn bổ sung):</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTokenSuggester(!showTokenSuggester)}
+                className="text-[11px] px-2 py-0.5 rounded-lg bg-[#142d1f] hover:bg-[#1d412d] border border-[#234d35] text-lime-300 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                title="Mở bảng gợi ý tokens nhận diện thông minh"
+              >
+                <Wand2 className="w-3 h-3 text-lime-400" />
+                <span>Gợi ý Tokens</span>
+                {showTokenSuggester ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
             </div>
+
             <input
               type="text"
               value={characterSeed}
               onChange={(e) => setCharacterSeed(e.target.value)}
               placeholder="VD: Cậu bé 12 tuổi, mắt xanh lá, áo khoác da nâu có huy hiệu sao băng, luôn đi ủng cao cổ..."
-              className="w-full bg-[#08120c] border border-[#1e3c2a] rounded-lg px-3 py-2 text-xs text-emerald-200 placeholder-emerald-700 focus:outline-none focus:border-emerald-500"
+              className="w-full bg-[#08120c] border border-[#1e3c2a] rounded-lg px-3 py-2 text-xs text-emerald-200 placeholder-emerald-700 focus:outline-none focus:border-emerald-500 shadow-inner"
             />
+
+            {/* Quick extracted chips directly below input */}
+            {quickExtractedTokens.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
+                  <Tag className="w-2.5 h-2.5 text-lime-400" />
+                  Đặc điểm nhận diện nhanh:
+                </span>
+                {quickExtractedTokens.slice(0, 6).map((tok) => (
+                  <button
+                    key={tok}
+                    type="button"
+                    onClick={() => handleQuickAddToken(tok)}
+                    className="text-[10px] px-2 py-0.5 rounded-full bg-[#0d2316] hover:bg-emerald-800 border border-[#1f482f] text-emerald-300 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+                    title={`Thêm "${tok}" vào ghi chú nhân vật`}
+                  >
+                    <span>+</span>
+                    <span>{tok}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Full collapsible token suggester */}
+            {showTokenSuggester && (
+              <ConsistencyTokensSuggester
+                descriptionText={`${idea} ${characterSeed}`}
+                currentTokens={characterSeed}
+                onChangeTokens={setCharacterSeed}
+                title="Bảng Chọn Nhanh Đặc Điểm Nhận Dạng (Consistency Tokens)"
+              />
+            )}
           </div>
         </div>
 

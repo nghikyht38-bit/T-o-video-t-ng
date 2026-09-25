@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Users, Check, Edit2, ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react';
+import { Users, Check, Edit2, ChevronDown, ChevronUp, ShieldCheck, Sparkles } from 'lucide-react';
 import { CharacterProfile } from '../types';
+import { ConsistencyTokensSuggester } from './ConsistencyTokensSuggester';
 
 interface CharacterConsistencyBannerProps {
   characterProfile: CharacterProfile;
@@ -18,6 +19,13 @@ export const CharacterConsistencyBanner: React.FC<CharacterConsistencyBannerProp
   const handleSave = () => {
     onChangeProfile(draft);
     setIsEditing(false);
+  };
+
+  const handleQuickTokensUpdate = (tokens: string) => {
+    onChangeProfile({
+      ...characterProfile,
+      consistencyTokens: tokens,
+    });
   };
 
   return (
@@ -68,63 +76,85 @@ export const CharacterConsistencyBanner: React.FC<CharacterConsistencyBannerProp
       </div>
 
       {isExpanded && (
-        <div className="mt-3 pt-3 border-t border-[#1a3826] grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div className="mt-3 pt-3 border-t border-[#1a3826] space-y-3 text-xs">
           {isEditing ? (
             <>
-              <div className="bg-[#09140e] p-2.5 rounded-lg border border-[#1e3c2a]">
-                <span className="text-emerald-500 text-[10px] font-semibold">Tên & Độ tuổi:</span>
-                <input
-                  type="text"
-                  value={draft.name}
-                  onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                  className="w-full bg-[#0d1d14] border border-[#234b34] rounded p-1 text-xs text-white mt-1"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-[#09140e] p-2.5 rounded-lg border border-[#1e3c2a]">
+                  <span className="text-emerald-500 text-[10px] font-semibold">Tên & Độ tuổi:</span>
+                  <input
+                    type="text"
+                    value={draft.name}
+                    onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                    className="w-full bg-[#0d1d14] border border-[#234b34] rounded p-1 text-xs text-white mt-1"
+                  />
+                </div>
+                <div className="bg-[#09140e] p-2.5 rounded-lg border border-[#1e3c2a]">
+                  <span className="text-emerald-500 text-[10px] font-semibold">Đặc điểm nhận diện:</span>
+                  <input
+                    type="text"
+                    value={draft.appearance}
+                    onChange={(e) => setDraft({ ...draft, appearance: e.target.value })}
+                    className="w-full bg-[#0d1d14] border border-[#234b34] rounded p-1 text-xs text-white mt-1"
+                  />
+                </div>
+                <div className="bg-[#09140e] p-2.5 rounded-lg border border-[#1e3c2a]">
+                  <span className="text-emerald-500 text-[10px] font-semibold">Trang phục cố định:</span>
+                  <input
+                    type="text"
+                    value={draft.clothing}
+                    onChange={(e) => setDraft({ ...draft, clothing: e.target.value })}
+                    className="w-full bg-[#0d1d14] border border-[#234b34] rounded p-1 text-xs text-white mt-1"
+                  />
+                </div>
               </div>
-              <div className="bg-[#09140e] p-2.5 rounded-lg border border-[#1e3c2a]">
-                <span className="text-emerald-500 text-[10px] font-semibold">Đặc điểm nhận diện:</span>
-                <input
-                  type="text"
-                  value={draft.appearance}
-                  onChange={(e) => setDraft({ ...draft, appearance: e.target.value })}
-                  className="w-full bg-[#0d1d14] border border-[#234b34] rounded p-1 text-xs text-white mt-1"
-                />
-              </div>
-              <div className="bg-[#09140e] p-2.5 rounded-lg border border-[#1e3c2a]">
-                <span className="text-emerald-500 text-[10px] font-semibold">Trang phục cố định:</span>
-                <input
-                  type="text"
-                  value={draft.clothing}
-                  onChange={(e) => setDraft({ ...draft, clothing: e.target.value })}
-                  className="w-full bg-[#0d1d14] border border-[#234b34] rounded p-1 text-xs text-white mt-1"
-                />
-              </div>
-              <div className="md:col-span-3 flex justify-end gap-2 mt-1">
+
+              {/* Interactive Consistency Tokens Suggester based on character description */}
+              <ConsistencyTokensSuggester
+                descriptionText={`${draft.name} ${draft.appearance} ${draft.clothing}`}
+                currentTokens={draft.consistencyTokens}
+                onChangeTokens={(tokens) => setDraft({ ...draft, consistencyTokens: tokens })}
+                title="Gợi Ý Consistency Tokens Dựa Trên Mô Tả Đã Nhập"
+              />
+
+              <div className="flex justify-end gap-2 mt-2">
                 <button
                   type="button"
                   onClick={handleSave}
-                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-lime-600 hover:from-emerald-500 hover:to-lime-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
                   <Check className="w-3.5 h-3.5" />
-                  Lưu thay đổi nhân vật
+                  Lưu thay đổi nhân vật & Tokens
                 </button>
               </div>
             </>
           ) : (
             <>
-              <div className="bg-[#09140e]/70 p-2.5 rounded-lg border border-[#1e3c2a]">
-                <span className="text-emerald-500 text-[10px] font-semibold block">Đặc điểm diện mạo:</span>
-                <span className="text-emerald-200 mt-1 block">{characterProfile.appearance}</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-[#09140e]/70 p-2.5 rounded-lg border border-[#1e3c2a]">
+                  <span className="text-emerald-500 text-[10px] font-semibold block">Đặc điểm diện mạo:</span>
+                  <span className="text-emerald-200 mt-1 block">{characterProfile.appearance}</span>
+                </div>
+                <div className="bg-[#09140e]/70 p-2.5 rounded-lg border border-[#1e3c2a]">
+                  <span className="text-emerald-500 text-[10px] font-semibold block">Trang phục cố định:</span>
+                  <span className="text-emerald-200 mt-1 block">{characterProfile.clothing}</span>
+                </div>
+                <div className="bg-[#09140e]/70 p-2.5 rounded-lg border border-[#1e3c2a]">
+                  <span className="text-emerald-500 text-[10px] font-semibold block">Tokens đồng bộ:</span>
+                  <span className="text-lime-300 font-mono text-[10px] mt-1 block truncate">
+                    {characterProfile.consistencyTokens || '(Chưa có tokens)'}
+                  </span>
+                </div>
               </div>
-              <div className="bg-[#09140e]/70 p-2.5 rounded-lg border border-[#1e3c2a]">
-                <span className="text-emerald-500 text-[10px] font-semibold block">Trang phục cố định:</span>
-                <span className="text-emerald-200 mt-1 block">{characterProfile.clothing}</span>
-              </div>
-              <div className="bg-[#09140e]/70 p-2.5 rounded-lg border border-[#1e3c2a]">
-                <span className="text-emerald-500 text-[10px] font-semibold block">Tokens đồng bộ:</span>
-                <span className="text-lime-300 font-mono text-[10px] mt-1 block truncate">
-                  {characterProfile.consistencyTokens}
-                </span>
-              </div>
+
+              {/* Quick toggle chips directly in view mode */}
+              <ConsistencyTokensSuggester
+                descriptionText={`${characterProfile.name} ${characterProfile.appearance} ${characterProfile.clothing}`}
+                currentTokens={characterProfile.consistencyTokens}
+                onChangeTokens={handleQuickTokensUpdate}
+                title="Gợi Ý & Chọn Nhanh Đặc Điểm Nhận Diện Cho Prompt"
+                compact={true}
+              />
             </>
           )}
         </div>
