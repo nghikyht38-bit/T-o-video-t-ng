@@ -228,7 +228,7 @@ export const ActionControls: React.FC<ActionControlsProps> = ({
       </div>
 
       {/* Realtime Batch Progress Tracker Banner */}
-      {batchProgressText && (
+      {Boolean(batchProgressText && (isAnalyzing || isAnyBatchRunning)) && (
         <div className="mt-3.5 pt-3 border-t border-[#183623] flex items-center justify-between text-xs text-emerald-300 bg-[#0c1a12] px-3 py-2 rounded-lg border border-[#1b3d27]">
           <div className="flex items-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin text-lime-400" />

@@ -225,13 +225,13 @@ export default function App() {
       setProjectSummary(result.summary);
       setCharacterProfile(result.characterProfile);
       setScenesWithCheckpoint(result.scenes, true);
-      setBatchProgressText('');
     } catch (err: any) {
-      console.error('Lỗi phân tích:', err);
+      console.warn('Lỗi phân tích hoặc chạm giới hạn API, tự động dùng kịch bản dự phòng:', err);
       // Fallback local intelligent generator if network or API error occurs
       generateLocalScriptFallback();
     } finally {
       setIsAnalyzing(false);
+      setBatchProgressText('');
     }
   };
 
